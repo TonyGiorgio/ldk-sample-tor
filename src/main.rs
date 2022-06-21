@@ -3,8 +3,10 @@ mod cli;
 mod convert;
 mod disk;
 mod hex_utils;
+mod tor;
 
 use crate::bitcoind_client::BitcoindClient;
+use crate::tor::TorDescriptor;
 use crate::disk::FilesystemLogger;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
@@ -90,7 +92,7 @@ type ChainMonitor = chainmonitor::ChainMonitor<
 >;
 
 pub(crate) type PeerManager = SimpleArcPeerManager<
-	SocketDescriptor,
+	TorDescriptor,
 	ChainMonitor,
 	BitcoindClient,
 	BitcoindClient,
@@ -592,6 +594,8 @@ async fn start_ldk() {
 	let stop_listen_connect = Arc::new(AtomicBool::new(false));
 	let stop_listen = Arc::clone(&stop_listen_connect);
 	tokio::spawn(async move {
+            // no listening for tor yet
+            /*
 		let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", listening_port))
 			.await
 			.expect("Failed to bind to listen port - is something else already listening on it?");
@@ -609,6 +613,7 @@ async fn start_ldk() {
 				.await;
 			});
 		}
+            */
 	});
 
 	// Step 14: Connect and Disconnect Blocks

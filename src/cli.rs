@@ -1,4 +1,5 @@
 use crate::disk;
+use crate::tor::connect_outbound;
 use crate::hex_utils;
 use crate::{
 	ChannelManager, HTLCStatus, InvoicePayer, MillisatAmount, NetworkGraph, NodeAlias, PaymentInfo,
@@ -558,7 +559,7 @@ pub(crate) async fn connect_peer_if_necessary(
 pub(crate) async fn do_connect_peer(
 	pubkey: PublicKey, peer_addr: SocketAddr, peer_manager: Arc<PeerManager>,
 ) -> Result<(), ()> {
-	match lightning_net_tokio::connect_outbound(Arc::clone(&peer_manager), pubkey, peer_addr).await
+	match connect_outbound(Arc::clone(&peer_manager), pubkey, peer_addr).await
 	{
 		Some(connection_closed_future) => {
 			let mut connection_closed_future = Box::pin(connection_closed_future);
