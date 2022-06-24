@@ -27,9 +27,8 @@ chrono = "0.4"
 rand = "0.4"
 serde_json = { version = "1.0" }
 tokio = { version = "1", features = [ "io-util", "macros", "rt", "rt-multi-thread", "sync", "net", "time" ] }
-arti-client = { version = "0.4.0", features = [ "tokio" ] }
-tor-rtcompat = "0.4.0"
-tor-proto = "0.3.1"
+tor = { git = "https://github.com/Sifir-io/sifir-rs-sdk" }
+tor-stream = "0.3.0"
 
 [profile.release]
 panic = "abort"

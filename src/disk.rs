@@ -9,9 +9,9 @@ use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
-use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
+use tor_stream::socks::TargetAddr;
 
 pub(crate) struct FilesystemLogger {
 	data_dir: String,
@@ -54,7 +54,7 @@ pub(crate) fn persist_channel_peer(path: &Path, peer_info: &str) -> std::io::Res
 
 pub(crate) fn read_channel_peer_data(
 	path: &Path,
-) -> Result<HashMap<PublicKey, SocketAddr>, std::io::Error> {
+) -> Result<HashMap<PublicKey, TargetAddr>, std::io::Error> {
 	let mut peer_data = HashMap::new();
 	if !Path::new(&path).exists() {
 		return Ok(HashMap::new());

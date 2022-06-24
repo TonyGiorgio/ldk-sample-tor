@@ -1,6 +1,6 @@
 use crate::disk;
-use crate::tor::connect_outbound;
 use crate::hex_utils;
+use crate::tor::connect_outbound;
 use crate::{
 	ChannelManager, HTLCStatus, InvoicePayer, MillisatAmount, NetworkGraph, NodeAlias, PaymentInfo,
 	PaymentInfoStorage, PeerManager,
@@ -20,12 +20,14 @@ use lightning_invoice::{utils, Currency, Invoice};
 use std::env;
 use std::io;
 use std::io::{BufRead, Write};
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::IpAddr;
 use std::ops::Deref;
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
+use tor_stream::socks::TargetAddr;
+use tor_stream::ToTargetAddr;
 
 pub(crate) struct LdkUserInfo {
 	pub(crate) bitcoind_rpc_username: String,
@@ -542,7 +544,7 @@ fn list_payments(inbound_payments: PaymentInfoStorage, outbound_payments: Paymen
 }
 
 pub(crate) async fn connect_peer_if_necessary(
-	pubkey: PublicKey, peer_addr: SocketAddr, peer_manager: Arc<PeerManager>,
+	pubkey: PublicKey, peer_addr: impl ToTargetAddr, peer_manager: Arc<PeerManager>,
 ) -> Result<(), ()> {
 	for node_pubkey in peer_manager.get_peer_node_ids() {
 		if node_pubkey == pubkey {
@@ -557,10 +559,9 @@ pub(crate) async fn connect_peer_if_necessary(
 }
 
 pub(crate) async fn do_connect_peer(
-	pubkey: PublicKey, peer_addr: SocketAddr, peer_manager: Arc<PeerManager>,
+	pubkey: PublicKey, peer_addr: impl ToTargetAddr, peer_manager: Arc<PeerManager>,
 ) -> Result<(), ()> {
-	match connect_outbound(Arc::clone(&peer_manager), pubkey, peer_addr).await
-	{
+	match connect_outbound(Arc::clone(&peer_manager), pubkey, peer_addr).await {
 		Some(connection_closed_future) => {
 			let mut connection_closed_future = Box::pin(connection_closed_future);
 			loop {
@@ -756,7 +757,7 @@ fn force_close_channel(
 
 pub(crate) fn parse_peer_info(
 	peer_pubkey_and_ip_addr: String,
-) -> Result<(PublicKey, SocketAddr), std::io::Error> {
+) -> Result<(PublicKey, TargetAddr), std::io::Error> {
 	let mut pubkey_and_addr = peer_pubkey_and_ip_addr.split("@");
 	let pubkey = pubkey_and_addr.next();
 	let peer_addr_str = pubkey_and_addr.next();
@@ -767,8 +768,10 @@ pub(crate) fn parse_peer_info(
 		));
 	}
 
-	let peer_addr = peer_addr_str.unwrap().to_socket_addrs().map(|mut r| r.next());
-	if peer_addr.is_err() || peer_addr.as_ref().unwrap().is_none() {
+	let peer_addr = peer_addr_str.unwrap().to_target_addr(); //.map(|mut r| r.next());
+	if peer_addr.is_err()
+	/*|| peer_addr.as_ref().unwrap().is_none()*/
+	{
 		return Err(std::io::Error::new(
 			std::io::ErrorKind::Other,
 			"ERROR: couldn't parse pubkey@host:port into a socket address",
@@ -783,5 +786,5 @@ pub(crate) fn parse_peer_info(
 		));
 	}
 
-	Ok((pubkey.unwrap(), peer_addr.unwrap().unwrap()))
+	Ok((pubkey.unwrap(), peer_addr.unwrap()))
 }

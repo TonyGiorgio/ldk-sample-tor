@@ -6,8 +6,8 @@ mod hex_utils;
 mod tor;
 
 use crate::bitcoind_client::BitcoindClient;
-use crate::tor::TorDescriptor;
 use crate::disk::FilesystemLogger;
+use crate::tor::create_tor_service;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -92,7 +92,8 @@ type ChainMonitor = chainmonitor::ChainMonitor<
 >;
 
 pub(crate) type PeerManager = SimpleArcPeerManager<
-	TorDescriptor,
+	//TorDescriptor,
+	SocketDescriptor,
 	ChainMonitor,
 	BitcoindClient,
 	BitcoindClient,
@@ -373,6 +374,7 @@ async fn handle_ldk_events(
 	}
 }
 
+#[tokio::main]
 async fn start_ldk() {
 	let args = match cli::parse_startup_args() {
 		Ok(user_args) => user_args,
@@ -589,13 +591,13 @@ async fn start_ldk() {
 	// ## Running LDK
 	// Step 13: Initialize networking
 
-	let peer_manager_connection_handler = peer_manager.clone();
-	let listening_port = args.ldk_peer_listening_port;
+	let _peer_manager_connection_handler = peer_manager.clone();
+	let _listening_port = args.ldk_peer_listening_port;
 	let stop_listen_connect = Arc::new(AtomicBool::new(false));
-	let stop_listen = Arc::clone(&stop_listen_connect);
+	let _stop_listen = Arc::clone(&stop_listen_connect);
 	tokio::spawn(async move {
-            // no listening for tor yet
-            /*
+		// no listening for tor yet
+		/*
 		let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", listening_port))
 			.await
 			.expect("Failed to bind to listen port - is something else already listening on it?");
@@ -613,7 +615,7 @@ async fn start_ldk() {
 				.await;
 			});
 		}
-            */
+			*/
 	});
 
 	// Step 14: Connect and Disconnect Blocks
@@ -781,7 +783,9 @@ async fn start_ldk() {
 	background_processor.stop().unwrap();
 }
 
-#[tokio::main]
-pub async fn main() {
-	start_ldk().await;
+pub fn main() {
+	// first startup tor since that uses tokio stuff....
+	let tor_service = create_tor_service();
+	let _owned_tor_service = tor_service.into_owned_node().unwrap();
+	start_ldk();
 }
