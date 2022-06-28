@@ -8,6 +8,7 @@ mod tor;
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
 use crate::tor::create_tor_service;
+use ::tor::TorHiddenServiceParam;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -420,13 +421,11 @@ async fn start_ldk() {
 
 	// ## Setup
 	// Step 1: Initialize the FeeEstimator
-
 	// BitcoindClient implements the FeeEstimator trait, so it'll act as our fee estimator.
 	let fee_estimator = bitcoind_client.clone();
 
 	// Step 2: Initialize the Logger
 	let logger = Arc::new(FilesystemLogger::new(ldk_data_dir.clone()));
-
 	// Step 3: Initialize the BroadcasterInterface
 
 	// BitcoindClient implements the BroadcasterInterface trait, so it'll act as our transaction
@@ -590,14 +589,11 @@ async fn start_ldk() {
 
 	// ## Running LDK
 	// Step 13: Initialize networking
-
-	let _peer_manager_connection_handler = peer_manager.clone();
-	let _listening_port = args.ldk_peer_listening_port;
+	let peer_manager_connection_handler = peer_manager.clone();
+	let listening_port = args.ldk_peer_listening_port;
 	let stop_listen_connect = Arc::new(AtomicBool::new(false));
-	let _stop_listen = Arc::clone(&stop_listen_connect);
+	let stop_listen = Arc::clone(&stop_listen_connect);
 	tokio::spawn(async move {
-		// no listening for tor yet
-		/*
 		let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", listening_port))
 			.await
 			.expect("Failed to bind to listen port - is something else already listening on it?");
@@ -615,7 +611,6 @@ async fn start_ldk() {
 				.await;
 			});
 		}
-			*/
 	});
 
 	// Step 14: Connect and Disconnect Blocks
@@ -786,6 +781,16 @@ async fn start_ldk() {
 pub fn main() {
 	// first startup tor since that uses tokio stuff....
 	let tor_service = create_tor_service();
-	let _owned_tor_service = tor_service.into_owned_node().unwrap();
+	let mut owned_tor_service = tor_service.into_owned_node().unwrap();
+
+	let hs_port: u16 = 20011;
+	let service_key = owned_tor_service
+		.create_hidden_service(TorHiddenServiceParam { to_port: 19757, hs_port, secret_key: None })
+		.unwrap();
+
+	let mut onion_url = reqwest::Url::parse(&format!("http://{}", service_key.onion_url)).unwrap();
+	let _ = onion_url.set_port(Some(hs_port));
+	println!("Hidden Service Created!!\n Hidden Service Onion URL: {}\n Forwarding to Port: {}\n Socks5 Proxy: 127.0.0.1:{}\n", onion_url, 19757,19054);
+
 	start_ldk();
 }
